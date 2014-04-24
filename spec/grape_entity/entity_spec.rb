@@ -267,6 +267,65 @@ describe Grape::Entity do
           subject.represent(object).send(:value_for, :size).should == object.class.to_s
         end
       end
+
+      context 'when same exposures with different options using and if' do
+        it 'should generate right result' do
+          class PhotoEntity < Grape::Entity
+            expose :photo_file
+          end
+
+          class SoundEntity < Grape::Entity
+            expose :sound_file
+          end
+
+          class MediaEntity < Grape::Entity
+            expose :media, using: SoundEntity, if: lambda { |object, _| object.sound? }
+            expose :media, using: PhotoEntity, if: lambda { |object, _| object.photo? }
+          end
+
+          class Photo
+            def photo_file
+              'photo_file'
+            end
+          end
+
+          class Sound
+            def sound_file
+              'sound_file'
+            end
+          end
+
+          class Media
+            attr_accessor :media
+
+            def initialize(media)
+              self.media = media
+            end
+
+            def photo?
+              media.is_a? Photo
+            end
+
+            def sound?
+              media.is_a? Sound
+            end
+          end
+
+          MediaEntity.represent([Media.new(Sound.new), Media.new(Photo.new)], serializable: true).should == [
+            {
+              media: {
+                sound_file: 'sound_file'
+              }
+            },
+            {
+              media: {
+                photo_file: 'photo_file'
+              }
+            }
+          ]
+        end
+      end
+
     end
 
     describe '.with_options' do
